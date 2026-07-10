@@ -79,7 +79,18 @@ class WebSocketServer:
             await asyncio.Future()
 
     async def _handle_connection(self, websocket: websockets.ServerConnection):
-        headers = dict(websocket.request.headers)
+        # kids-time-planner: 用 .get_all() 容错重复 header
+        # 新版 websockets 库对重复 header 抛 MultipleValuesError
+        raw_headers = websocket.request.headers
+        headers = {}
+        for k, v in raw_headers.raw_items():
+            existing = headers.get(k)
+            if existing is None:
+                headers[k] = v
+            elif isinstance(existing, list):
+                existing.append(v)
+            else:
+                headers[k] = [existing, v]
         if headers.get("device-id", None) is None:
             # 尝试从 URL 的查询参数中获取 device-id
             from urllib.parse import parse_qs, urlparse

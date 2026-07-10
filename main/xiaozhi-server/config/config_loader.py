@@ -24,6 +24,25 @@ def read_config(config_path):
     return config
 
 
+import re as _re
+
+_ENV_VAR_RE = _re.compile(r"\$\{([A-Z_][A-Z0-9_]*)\}")
+
+
+def _substitute_env(value):
+    """递归把字符串里的 ${VAR} 替换为 os.environ[VAR]；变量未设置时保持原样"""
+    if isinstance(value, str):
+        def _replace(m):
+            var = m.group(1)
+            return os.environ.get(var, m.group(0))
+        return _ENV_VAR_RE.sub(_replace, value)
+    if isinstance(value, Mapping):
+        return {k: _substitute_env(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_substitute_env(v) for v in value]
+    return value
+
+
 def load_config():
     """加载配置文件"""
     from core.utils.cache.manager import cache_manager, CacheType
@@ -54,6 +73,8 @@ def load_config():
     else:
         # 合并配置
         config = merge_configs(default_config, custom_config)
+    # kids-time-planner: 支持 ${ENV_VAR} 注入敏感配置（不写死在 yaml 里）
+    config = _substitute_env(config)
     # 初始化目录
     ensure_directories(config)
 

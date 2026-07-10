@@ -198,3 +198,7 @@ README.md.upstream
 main/digital-human/
 main/manager-web/public/generator/static/fonts/
 *.ttf
+
+# kids-time-planner: ASR model weights (downloaded at runtime)
+main/xiaozhi-server/models/
+

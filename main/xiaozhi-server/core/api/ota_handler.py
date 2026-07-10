@@ -353,15 +353,37 @@ class OTAHandler(BaseHandler):
             return response
 
     async def handle_get(self, request):
-        """处理 OTA GET 请求"""
+        """处理 OTA GET 请求
+
+        kids-time-planner: 返回设备固件期望的 JSON 格式
+        (含 websocket.url 段,固件可据此连后端)
+        """
         try:
             server_config = self.config["server"]
             local_ip = get_local_ip()
             # use websocket port for websocket URL
             websocket_port = int(server_config.get("port", 8000))
             websocket_url = self._get_websocket_url(local_ip, websocket_port)
-            message = f"OTA接口运行正常，向设备发送的websocket地址是：{websocket_url}"
-            response = web.Response(text=message, content_type="text/plain")
+
+            # 设备固件期望 (参考 xiaozhi-esp32/main/ota.cc:168):
+            # {
+            #   "websocket": {"url": "ws://..."},
+            #   "firmware": {"version": "1.0.0", "url": ""}
+            # }
+            payload = {
+                "websocket": {
+                    "url": websocket_url,
+                },
+                "firmware": {
+                    "version": "1.0.0",
+                    "url": "",
+                },
+                "server_time": {
+                    "timestamp": int(time.time()),
+                    "timezone_offset": server_config.get("timezone_offset", 0) * 3600 // 3600,
+                },
+            }
+            response = web.json_response(payload)
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"OTA GET请求异常: {e}")
             response = web.Response(text="OTA接口异常", content_type="text/plain")

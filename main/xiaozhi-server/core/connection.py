@@ -200,8 +200,17 @@ class ConnectionHandler:
             # 获取运行中的事件循环（必须在异步上下文中）
             self.loop = asyncio.get_running_loop()
 
-            # 获取并验证headers
-            self.headers = dict(ws.request.headers)
+            # 获取并验证headers（容错重复 header）
+            raw_headers = ws.request.headers
+            self.headers = {}
+            for k, v in raw_headers.raw_items():
+                existing = self.headers.get(k)
+                if existing is None:
+                    self.headers[k] = v
+                elif isinstance(existing, list):
+                    existing.append(v)
+                else:
+                    self.headers[k] = [existing, v]
             real_ip = self.headers.get("x-real-ip") or self.headers.get(
                 "x-forwarded-for"
             )
